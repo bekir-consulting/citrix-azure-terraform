@@ -10,11 +10,11 @@ Automated deployment of a Citrix worker infrastructure on Microsoft Azure using 
 - Public IP and Network Interface
 
 ## Usage
-`ash
+```bash
 terraform init
 terraform plan
 terraform apply
-`
+```
 
 ## Author
 Bekir Ugurlu | Citrix & Azure Architect | ugurlu@bekirconsulting.de
