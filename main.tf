@@ -14,6 +14,11 @@ provider "azurerm" {
   features {}
 }
 
+# Hole aktuelle öffentliche IP automatisch
+data "http" "my_ip" {
+  url = "https://api.ipify.org"
+}
+
 resource "azurerm_resource_group" "rg" {
   name     = "myTFResourceGroup"
   location = "westus2"
@@ -86,7 +91,20 @@ resource "azurerm_network_security_group" "citrix_nsg" {
     destination_address_prefix = "*"
   }
 
-  #Alles nadere blockieren
+  # WinRM für Ansible
+  security_rule {
+    name                       = "Allow-WinRM"
+    priority                   = 130
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "5985"
+    source_address_prefix      = "${data.http.my_ip.response_body}/32"
+    destination_address_prefix = "*"
+  }
+
+  #Alles andere blockieren
   security_rule {
     name = "Deny-All-Inbound"
     priority = 4096
@@ -154,4 +172,17 @@ resource "azurerm_windows_virtual_machine" "citrix_worker" {
     sku = "2022-Datacenter"
     version = "latest"
   }
+}
+
+#WinRM automatisch aktivieren beim Deployment
+resource "azurerm_virtual_machine_extension" "winrm_setup" {
+  name = "winrm-setup"
+  virtual_machine_id = azurerm_windows_virtual_machine.citrix_worker.id
+  publisher = "Microsoft.Compute"
+  type = "CustomScriptExtension"
+  type_handler_version = "1.10"
+
+  settings = jsonencode({
+    commandToExecute = "powershell -Command \"winrm quickconfig -force; Enable-PSRemoting -Force; netsh advfirewall firewall set rule name='Windows Remote Management (HTTP-In)' profile=Public new remoteip=any\""
+  })
 }
