@@ -124,65 +124,11 @@ resource "azurerm_subnet_network_security_group_association" "citrix_nsg_assoc" 
   network_security_group_id = azurerm_network_security_group.citrix_nsg.id
 }
 
-#Public IP für Citrix Helper
-resource "azurerm_public_ip" "citrix_pip" {
-  name = "pip-citrix-worker-01"
-  location = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-  allocation_method = "Static"#
-  sku = "Standard"
-}
-
-#Network Interface
-resource "azurerm_network_interface" "citrix_nic" {
-  name = "nic-citrix-worker-01"
-  location = azurerm_resource_group.rg.location
-  resource_group_name =   azurerm_resource_group.rg.name
-
-  ip_configuration {
-    name = "internal"
-    subnet_id = azurerm_subnet.citrix_Workers.id
-    private_ip_address_allocation = "Dynamic"
-    public_ip_address_id = azurerm_public_ip.citrix_pip.id
-  }
-}
-
-#Citrix Worker VM
-resource "azurerm_windows_virtual_machine" "citrix_worker" {
-  name = "vm-citrix-worker-01"
-  computer_name = "ctx-worker-01"
+module "citrix_worker_01" {
+  source = "./modules/citrix-worker"
+  name = "ctx-worker-01"
   resource_group_name = azurerm_resource_group.rg.name
   location = azurerm_resource_group.rg.location
-  size = "Standard_D2s_v3"
-  admin_username = "citrixadmin"
+  subnet_id = azurerm_subnet.citrix_Workers.id
   admin_password = var.admin_password
-
-  network_interface_ids = [
-    azurerm_network_interface.citrix_nic.id,
-  ]
-
-  os_disk {
-    caching = "ReadWrite"
-    storage_account_type = "Premium_LRS"
-  }
-
-  source_image_reference {
-    publisher = "MicrosoftWindowsServer"
-    offer = "WindowsServer"
-    sku = "2022-Datacenter"
-    version = "latest"
-  }
-}
-
-#WinRM automatisch aktivieren beim Deployment
-resource "azurerm_virtual_machine_extension" "winrm_setup" {
-  name = "winrm-setup"
-  virtual_machine_id = azurerm_windows_virtual_machine.citrix_worker.id
-  publisher = "Microsoft.Compute"
-  type = "CustomScriptExtension"
-  type_handler_version = "1.10"
-
-  settings = jsonencode({
-    commandToExecute = "powershell -Command \"winrm quickconfig -force; Enable-PSRemoting -Force; netsh advfirewall firewall set rule name='Windows Remote Management (HTTP-In)' profile=Public new remoteip=any\""
-  })
 }
