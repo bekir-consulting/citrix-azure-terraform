@@ -124,18 +124,11 @@ resource "azurerm_subnet_network_security_group_association" "citrix_nsg_assoc" 
   network_security_group_id = azurerm_network_security_group.citrix_nsg.id
 }
 
-module "citrix_worker_01" {
-  source  = "./modules/citrix-worker"
-  name    = "ctx-worker-01"
-  resource_group_name = azurerm_resource_group.rg.name
-  location = azurerm_resource_group.rg.location
-  subnet_id = azurerm_subnet.citrix_Workers.id
-  admin_password = var.admin_password
-}
-
-module "citrix_worker_02" {
+module "citrix-worker" {
   source = "./modules/citrix-worker"
-  name = "ctx-worker-02"
+  for_each = var.citrix_workers
+
+  name = each.value
   resource_group_name = azurerm_resource_group.rg.name
   location = azurerm_resource_group.rg.location
   subnet_id = azurerm_subnet.citrix_Workers.id
